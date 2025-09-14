@@ -1,17 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "./src/routes/index.js",
+  "type": "module",
+  "main": "./src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.js",
-    "type": "module",
     "start": "node src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Backend for hulla-chat-app",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "chat-app": "file:..",
