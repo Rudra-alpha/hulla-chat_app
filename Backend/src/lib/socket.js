@@ -7,7 +7,11 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: [
+      "http://localhost:5173", // local dev
+      "https://hulla-chat-app-7.onrender.com", // deployed frontend
+    ],
+    credentials: true,
   },
 });
 export function getReceiverSocketId(userId) {
