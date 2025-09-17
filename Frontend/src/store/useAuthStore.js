@@ -3,10 +3,9 @@ import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-// 🔧 FIXED: Check your port - you had 5001 but backend shows 5000
 const BASE_URL =
   import.meta.env.MODE === "development"
-    ? "http://localhost:5000" // 🔧 Changed from 5001 to 5000
+    ? "http://localhost:5000"
     : "https://hulla-chat-app-7-backend.onrender.com";
 
 export const useAuthStore = create((set, get) => ({
@@ -90,6 +89,7 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ENHANCE the connectSocket function:
   connectSocket: () => {
     const { authUser } = get();
     if (!authUser || get().socket?.connected) return;
@@ -98,8 +98,12 @@ export const useAuthStore = create((set, get) => ({
 
     const socket = io(BASE_URL, {
       query: { userId: authUser._id },
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // ADD polling as fallback
       withCredentials: true,
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     set({ socket });
@@ -108,18 +112,17 @@ export const useAuthStore = create((set, get) => ({
       console.log("✅ Socket connected:", socket.id);
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
+    socket.on("disconnect", (reason) => {
+      console.log("❌ Socket disconnected:", reason);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.log("❌ Socket connection error:", error.message);
     });
 
     socket.on("getOnlineUsers", (userIds) => {
       console.log("👥 Online users:", userIds);
       set({ onlineUsers: userIds });
-    });
-
-    // 🔧 ADDED: Global message listener for debugging
-    socket.on("newMessage", (message) => {
-      console.log("📨 Global message received:", message);
     });
   },
 

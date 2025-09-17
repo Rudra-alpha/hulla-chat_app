@@ -1,99 +1,136 @@
-import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
-
-import ChatHeader from "./ChatHeader";
-import MessageInput from "./MessageInput";
-import MessageSkeleton from "./skeletons/MessageSkeleton";
+import { useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { formatMessageTime } from "../lib/utils";
+import { useChatStore } from "../store/useChatStore";
+import Sidebar from "../components/Sidebar";
+import ChatContainer from "../components/ChatContainer";
+import { Users, MessageSquare } from "lucide-react";
 
-const ChatContainer = () => {
+const HomePage = () => {
+  const { authUser, socket, onlineUsers } = useAuthStore();
   const {
-    messages,
-    getMessages,
-    isMessagesLoading,
     selectedUser,
+    messages,
+    users,
+    getUsers,
+    getMessages,
+    setSelectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
   } = useChatStore();
-  const { authUser } = useAuthStore();
-  const messageEndRef = useRef(null);
 
+  // Connect socket when user is authenticated
   useEffect(() => {
-    getMessages(selectedUser._id);
+    if (authUser && !socket) {
+      useAuthStore.getState().connectSocket();
+    }
+  }, [authUser, socket]);
 
+  // Subscribe to real-time messages
+  useEffect(() => {
     subscribeToMessages();
 
-    return () => unsubscribeFromMessages();
-  }, [
-    selectedUser._id,
-    getMessages,
-    subscribeToMessages,
-    unsubscribeFromMessages,
-  ]);
+    // Cleanup when component unmounts
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, [subscribeToMessages, unsubscribeFromMessages]);
 
+  // Load users on component mount
   useEffect(() => {
-    if (messageEndRef.current && messages) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+    getUsers();
+  }, [getUsers]);
 
-  if (isMessagesLoading) {
+  // Load messages when selected user changes
+  useEffect(() => {
+    if (selectedUser) {
+      getMessages(selectedUser._id);
+    }
+  }, [selectedUser, getMessages]);
+
+  // Debug socket connection
+  useEffect(() => {
+    const socket = useAuthStore.getState().socket;
+    if (socket) {
+      console.log(
+        "Socket status:",
+        socket.connected ? "Connected" : "Disconnected"
+      );
+      console.log("Socket ID:", socket.id);
+
+      // Add socket event listeners for debugging
+      socket.on("connect", () => {
+        console.log("✅ Socket connected successfully");
+      });
+
+      socket.on("disconnect", (reason) => {
+        console.log("❌ Socket disconnected:", reason);
+      });
+
+      socket.on("connect_error", (error) => {
+        console.log("❌ Socket connection error:", error.message);
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off("connect");
+        socket.off("disconnect");
+        socket.off("connect_error");
+      }
+    };
+  }, [socket]);
+
+  if (!authUser) {
     return (
-      <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader />
-        <MessageSkeleton />
-        <MessageInput />
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p>Please log in to access messages</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
-      <ChatHeader />
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Sidebar */}
+      <div className="w-80 border-r border-base-300">
+        <div className="p-4 border-b border-base-300">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Users size={20} />
+            Contacts
+          </h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            {onlineUsers.length} user{onlineUsers.length !== 1 ? "s" : ""}{" "}
+            online
+          </p>
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message._id}
-            className={`chat ${
-              message.senderId === authUser._id ? "chat-end" : "chat-start"
-            }`}
-            ref={messageEndRef}
-          >
-            <div className=" chat-image avatar">
-              <div className="size-10 rounded-full border">
-                <img
-                  src={
-                    message.senderId === authUser._id
-                      ? authUser.profilePic || "/avatar.png"
-                      : selectedUser.profilePic || "/avatar.png"
-                  }
-                  alt="profile pic"
-                />
-              </div>
-            </div>
-            <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
-                {formatMessageTime(message.createdAt)}
-              </time>
-            </div>
-            <div className="chat-bubble flex flex-col">
-              {message.image && (
-                <img
-                  src={message.image}
-                  alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2"
-                />
-              )}
-              {message.text && <p>{message.text}</p>}
-            </div>
-          </div>
-        ))}
+        <Sidebar
+          users={users}
+          selectedUser={selectedUser}
+          onSelectUser={setSelectedUser}
+          onlineUsers={onlineUsers}
+        />
       </div>
 
-      <MessageInput />
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedUser ? (
+          <ChatContainer
+            selectedUser={selectedUser}
+            messages={messages}
+            onlineUsers={onlineUsers}
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-zinc-400">
+            <MessageSquare size={48} className="mb-4" />
+            <h3 className="text-xl font-medium mb-2">Welcome to HulloChat</h3>
+            <p>Select a contact to start messaging</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
-export default ChatContainer;
+
+export default HomePage;
