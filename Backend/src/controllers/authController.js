@@ -49,7 +49,7 @@ export const login = async (req, res) => {
     // email check
     const userExist = await User.findOne({ email });
     if (!userExist) {
-      res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid credentials" }); // 🔧 ADDED return
     }
 
     // password verification
@@ -58,13 +58,13 @@ export const login = async (req, res) => {
       userExist.password
     );
     if (!isPasswordCorrect) {
-      res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid credentials" }); // 🔧 ADDED return
     }
 
     // token generating
-    // token generating
     generateToken(userExist._id, res);
-    res.status(201).json({
+    res.status(200).json({
+      // 🔧 CHANGED from 201 to 200 for login
       _id: userExist._id,
       email: userExist.email,
       fullName: userExist.fullName,
@@ -106,6 +106,7 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const checkAuth = async (req, res) => {
   try {
     res.status(200).json(req.user);

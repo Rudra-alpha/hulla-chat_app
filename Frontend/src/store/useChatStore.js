@@ -33,6 +33,7 @@ export const useChatStore = create((set, get) => ({
       set({ isMessagesLoading: false });
     }
   },
+
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
@@ -46,26 +47,45 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // 🔧 FIXED: This was the main issue
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    // Remove existing listener to prevent duplicates
+    socket.off("newMessage");
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser =
-        newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      console.log("📩 New message received:", newMessage);
 
-      set({
-        messages: [...get().messages, newMessage],
-      });
+      // 🔧 FIXED: Check if message is from OR to the selected user
+      const { selectedUser: currentSelectedUser } = get();
+      const isMessageFromSelectedUser =
+        newMessage.senderId === currentSelectedUser?._id;
+      const isMessageToSelectedUser =
+        newMessage.receiverId === useAuthStore.getState().authUser?._id;
+
+      // Only add message if it's part of the current conversation
+      if (
+        isMessageFromSelectedUser ||
+        (isMessageToSelectedUser &&
+          newMessage.senderId === currentSelectedUser?._id)
+      ) {
+        set({
+          messages: [...get().messages, newMessage],
+        });
+      }
     });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
+    if (socket) {
+      socket.off("newMessage");
+    }
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
